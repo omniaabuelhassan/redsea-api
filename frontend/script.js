@@ -1,7 +1,10 @@
 /**
  * RED SEA MARINE EXPLORER - FINAL INTEGRATED SCRIPT
- * Members 5 & 6 Tasks
+ * Fixed: API URL updated to Render production
  */
+
+// ✅ ONE PLACE to change the API URL — easy to update later
+const API_BASE = "https://redsea-api.onrender.com";
 
 // 1. Initialize Map
 const map = L.map("map").setView([22.0, 38.5], 6);
@@ -22,13 +25,12 @@ const applyBtn = document.getElementById("applyBtn");
 const totalCountLabel = document.getElementById("totalCount");
 const avgDepthLabel = document.getElementById("avgDepth");
 
-// 4. Load Species Dropdown (Member 6)
+// 4. Load Species Dropdown
 async function loadSpecies() {
   try {
-    const response = await fetch("http://localhost:3000/api/species");
+    const response = await fetch(`${API_BASE}/api/sightings/species`);
     const rawData = await response.json();
 
-    // Find the list regardless of API structure
     const speciesList = Array.isArray(rawData)
       ? rawData
       : rawData.data || rawData.species || [];
@@ -52,17 +54,16 @@ async function loadSpecies() {
 async function fetchSightings() {
   const center = map.getCenter();
   const species = speciesSelect.value;
-  const radiusMeters = radiusSlider.value * 1000; // UI is KM, API is Meters
+  const radiusMeters = radiusSlider.value * 1000;
 
-  // Using the /radius endpoint for functional slider control
-  let url = `http://localhost:3000/api/sightings/radius?lat=${center.lat}&lon=${center.lng}&radius=${radiusMeters}`;
+  let url = `${API_BASE}/api/sightings/radius?lat=${center.lat}&lon=${center.lng}&radius=${radiusMeters}`;
 
   if (species) {
     url += `&species=${encodeURIComponent(species)}`;
   }
 
   try {
-    console.log("Fetching data:", url);
+    console.log("Fetching:", url);
     const response = await fetch(url);
     const data = await response.json();
 
@@ -77,7 +78,7 @@ async function fetchSightings() {
   }
 }
 
-// 6. Update Map Visuals (Heatmap vs Markers)
+// 6. Update Map Visuals
 function updateLayers(geojsonData) {
   heatLayerGroup.clearLayers();
   markerLayerGroup.clearLayers();
@@ -88,10 +89,8 @@ function updateLayers(geojsonData) {
     const [lon, lat] = feature.geometry.coordinates;
     const props = feature.properties;
 
-    // Populate Heatmap Data [Lat, Lon, Intensity]
     heatPoints.push([lat, lon, 0.8]);
 
-    // Create Individual Marker
     const marker = L.circleMarker([lat, lon], {
       radius: 6,
       fillColor: "#00f2ff",
@@ -99,20 +98,19 @@ function updateLayers(geojsonData) {
       weight: 1,
       fillOpacity: 0.8,
     }).bindPopup(`
-            <div style="color: #333;">
-                <strong>${props.species || "Unknown"}</strong><br>
-                <b>Depth:</b> ${props.depth_m || "N/A"}m<br>
-                <b>Temp:</b> ${props.temp_c ? props.temp_c.toFixed(1) : "N/A"}°C
-            </div>
-        `);
+      <div style="color: #333;">
+        <strong>${props.species || "Unknown"}</strong><br>
+        <b>Depth:</b> ${props.depth_m || "N/A"}m<br>
+        <b>Temp:</b> ${props.temp_c ? props.temp_c.toFixed(1) : "N/A"}°C
+      </div>
+    `);
 
     markerLayerGroup.addLayer(marker);
   });
 
-  // Render Heatmap with larger radius for better blending
   if (heatPoints.length > 0) {
     const heat = L.heatLayer(heatPoints, {
-      radius: 45, // Increased for better "heat" effect
+      radius: 45,
       blur: 25,
       max: 1.0,
       gradient: { 0.4: "blue", 0.6: "cyan", 0.8: "lime", 1: "yellow" },
@@ -121,16 +119,15 @@ function updateLayers(geojsonData) {
   }
 }
 
-// 7. Calculate Real-Time Stats (Member 6)
+// 7. Calculate Stats
 function calculateStats(features) {
   const total = features.length;
   totalCountLabel.innerHTML = `Sightings: ${total}`;
 
   if (total > 0) {
-    // Find average depth from the current results
     const sumDepth = features.reduce(
       (acc, f) => acc + (f.properties.depth_m || 0),
-      0,
+      0
     );
     const avg = (sumDepth / total).toFixed(1);
     avgDepthLabel.innerHTML = `Avg Depth: ${avg}m`;
@@ -151,17 +148,14 @@ radiusSlider.addEventListener("input", (e) => {
   radiusLabel.innerHTML = e.target.value;
 });
 
-// Search button triggers new API call
 applyBtn.addEventListener("click", fetchSightings);
 
-// Layer Toggles
 const overlays = {
   "Heatmap Density": heatLayerGroup,
   "Individual Sightings": markerLayerGroup,
 };
 L.control.layers(null, overlays, { collapsed: false }).addTo(map);
 
-// Auto-refresh when user stops moving map
 map.on("moveend", fetchSightings);
 
 // Initial Load
